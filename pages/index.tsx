@@ -2,8 +2,10 @@ import * as ipfsClient from "ipfs-http-client";
 
 import { AddIcon, DeleteIcon } from "@chakra-ui/icons";
 import {
+  Box,
   Button,
   ButtonGroup,
+  Center,
   Container,
   Divider,
   FormControl,
@@ -14,6 +16,7 @@ import {
   Input,
   Spacer,
   Spinner,
+  Stack,
   Textarea,
   VStack,
   Toast,
@@ -22,6 +25,7 @@ import {
 import { createFFmpeg, fetchFile } from "@ffmpeg/ffmpeg";
 import { useEffect, useRef, useState } from "react";
 
+import MintModal from "../components/mintmodal";
 import type { NextPage } from "next";
 import Web3 from "web3";
 
@@ -61,8 +65,8 @@ const Home: NextPage = () => {
   const [maxCopies, setMaxCopies] = useState<number>(50);
   const [mintCost, setMintCost] = useState<number>(0.1);
   const [royalty, setRoyalty] = useState<number>(10);
-  const [deployedNFTUrl, setDeployedNftContractUrl] = useState("");
-  const [deployedSplitterUrl, setDeployedSplitterUrl] = useState("");
+  const [deployedNFTContract, setDeployedNftContractContract] = useState("");
+  const [deployedSplitterContract, setDeployedSplitterContract] = useState("");
   const [platformAddress, setPlatformAddress] = useState("");
 
   const fileArtworkRef = useRef(null);
@@ -72,6 +76,26 @@ const Home: NextPage = () => {
   const contractAddress = "0x8d1487d8DA75D2064271B0fA4FDe49F18303C1Eb";
 
   const create = async () => {
+    if (artistSplits.length === 0) {
+      toast({
+        title: 'Error',
+        description: "You need to define creator split in order to be paid ongoing royalties.",
+        status: 'error',
+        duration: 9000,
+        isClosable: true,
+      });
+      return;
+    }
+    if (artistSplits.map(m => m.address).some(s => s == platformAddress)) {
+      toast({
+        title: 'Error',
+        description: "Artist address cannot be the same as platform address",
+        status: 'error',
+        duration: 9000,
+        isClosable: true,
+      });
+      return;
+    }
     setLoading(true);
     const contentUrl = await uploadContentFileToIPFS();
     const metadataUrl = await createNFTJson(contentUrl);
@@ -106,16 +130,6 @@ const Home: NextPage = () => {
   };
 
   const deploy = async (metadataUrl: string | undefined) => {
-    if (artistSplits.length === 0) {
-      toast({
-        title: 'No creator splits defined.',
-        description: "You need to define creator split in order to be paid ongoing royalties.",
-        status: 'error',
-        duration: 9000,
-        isClosable: true,
-      });
-      return;
-    }
     let royaltyMod = royalty * 100;
     let artistAddresses = artistSplits.map((m) => m.address);
     artistAddresses.push(platformAddress);
@@ -131,8 +145,8 @@ const Home: NextPage = () => {
       .send({ from: account });
 
     if (contractUri !== undefined) {
-      setDeployedNftContractUrl(`https://rinkeby.etherscan.io/address/${contractUri.events[0].address}`);
-      setDeployedSplitterUrl(`https://rinkeby.etherscan.io/address/${contractUri.events[1].address}`);
+      setDeployedNftContractContract(contractUri.events[0].address);
+      setDeployedSplitterContract(contractUri.events[1].address);
     }
   };
 
@@ -281,8 +295,8 @@ const Home: NextPage = () => {
           </Button>
         </HStack>
 
-        <HStack>
-          <VStack w="30%">
+        <Stack direction={["column", "row"]}>
+          <VStack>
             <FormControl isRequired>
               <FormLabel>Track Title</FormLabel>
               <Input type="text" onChange={(e: any) => setName(e.target.value)} value={name} placeholder="Title" />
@@ -303,14 +317,16 @@ const Home: NextPage = () => {
               <FormLabel>Maximum copies to release</FormLabel>
               <Input type="number" onChange={(e: any) => setMaxCopies(e.target.value)} value={maxCopies} placeholder="e.g. 50" />
             </FormControl>
-            <FormControl isRequired>
-              <FormLabel>Mint Cost (ETH)</FormLabel>
-              <Input type="number" onChange={(e: any) => setMintCost(e.target.value)} value={mintCost} placeholder="e.g. 0.1" />
-            </FormControl>
-            <FormControl isRequired>
-              <FormLabel>Royalty (%)</FormLabel>
-              <Input type="number" min="5" max="30" onChange={(e: any) => setRoyalty(e.target.value)} value={royalty} placeholder="e.g. 10" />
-            </FormControl>
+            <HStack width="100%">
+              <FormControl isRequired>
+                <FormLabel>Mint Cost (ETH)</FormLabel>
+                <Input type="number" onChange={(e: any) => setMintCost(e.target.value)} value={mintCost} placeholder="e.g. 0.1" />
+              </FormControl>
+              <FormControl isRequired>
+                <FormLabel>Royalty (%)</FormLabel>
+                <Input type="number" min="5" max="30" onChange={(e: any) => setRoyalty(e.target.value)} value={royalty} placeholder="e.g. 10" />
+              </FormControl>
+            </HStack>
             <FormControl>
               <FormLabel>Upload Artwork</FormLabel>
               <Input pl="1" pt="1" ref={fileArtworkRef} type="file" accept="image/*" onChange={handleImageChange} />
@@ -348,58 +364,48 @@ const Home: NextPage = () => {
                 <IconButton aria-label="" icon={<DeleteIcon />} alignSelf="flex-end" onClick={() => removeArtistSplit(index)} disabled={videoSource !== ""} />
               </HStack>
             ))}
-            {/* <Divider></Divider>
-            <HStack>
-              <FormControl>
-                <FormLabel>Attribute Name</FormLabel>
-                <Input type="text" placeholder="Name" onChange={(e) => setAttributeName(e.target.value)} value={attributeName} />
-              </FormControl>
-              <FormControl>
-                <FormLabel>Attribute Value</FormLabel>
-                <Input type="text" placeholder="Value" onChange={(e) => setAttributeValue(e.target.value)} value={attributeValue} />
-              </FormControl>
-              <IconButton
-                disabled={attributeName === "" || attributeValue === ""}
-                aria-label=""
-                icon={<AddIcon />}
-                alignSelf="flex-end"
-                onClick={() => handleAttributeChange()}
-              />
-            </HStack>
-
-            {attributes.map((attribute: IAttribute, index) => (
-              <HStack key={index}>
-                <FormControl>
-                  <Input disabled type="text" placeholder="Name" value={attribute.trait_type} />
-                </FormControl>
-                <FormControl>
-                  <Input disabled type="text" placeholder="Value" value={attribute.value} />
-                </FormControl>
-                <IconButton aria-label="" icon={<DeleteIcon />} alignSelf="flex-end" onClick={() => removeAttribute(index)} />
-              </HStack>
-            ))} */}
+            <Divider></Divider>
+            <Box>
+            <Center>
+              <video src={videoSource} controls width="300px" height="300px" hidden={videoSource === ""}></video>
+            </Center>
+          </Box>
+            <FormControl hidden={deployedNFTContract === ""}>
+              <FormLabel>NFT Contract Address</FormLabel>
+              <Input disabled type="text" placeholder="NFT Contract Address" value={deployedNFTContract} />
+            </FormControl>
+            <FormControl hidden={deployedSplitterContract === ""}>
+              <FormLabel>Payment Contract Address</FormLabel>
+              <Input disabled type="text" placeholder="Payment Contrct Address" value={deployedSplitterContract} />
+            </FormControl>
             <Divider></Divider>
             <ButtonGroup>
               <Button onClick={() => clearAll()} colorScheme="red">
                 Reset
               </Button>
-              <Button onClick={createVideo} hidden={uploadFile !== undefined} disabled={name === ""}>
+              <Button
+                onClick={createVideo}
+                hidden={uploadFile !== undefined}
+                disabled={name === "" || description === "" || artist === "" || platformAddress === "" || artistSplits.length === 0}
+              >
                 {loading ? <Spinner /> : "Create Video"}
               </Button>
-              <Button onClick={() => create()} hidden={videoSource === "" || deployedNFTUrl !== ""}>
+              <Button onClick={() => create()} hidden={videoSource === "" || deployedNFTContract !== ""}>
                 {loading ? <Spinner /> : "Create Contract"}
               </Button>
-              <Button as="a" href={deployedNFTUrl} target="_blank" hidden={deployedNFTUrl === ""}>
+              <Button as="a" href={`https://rinkeby.etherscan.io/address/${deployedNFTContract}`} target="_blank" hidden={deployedNFTContract === ""}>
                 View NFT Contract
               </Button>
-              <Button as="a" href={deployedSplitterUrl} target="_blank" hidden={deployedSplitterUrl === ""}>
+              <Button as="a" href={`https://rinkeby.etherscan.io/address/${deployedSplitterContract}`} target="_blank" hidden={deployedSplitterContract === ""}>
                 View Royalty Contract
               </Button>
+
+              <MintModal account={account} nftContract={deployedNFTContract} web3={web3} mintCost={mintCost} deployedNFTContract={deployedNFTContract} />
             </ButtonGroup>
           </VStack>
           <Spacer />
-          <video src={videoSource} controls width="300px" height="300px" hidden={videoSource === ""}></video>
-        </HStack>
+          
+        </Stack>
       </Container>
     </>
   );

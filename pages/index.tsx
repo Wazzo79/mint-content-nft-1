@@ -319,7 +319,7 @@ const Home: NextPage = () => {
             </FormControl>
             <FormControl>
               <FormLabel>Upload Audio</FormLabel>
-              <Input pl="1" pt="1" type="file" ref={fileAudioRef} accept="audio/*" onChange={handleAudioChange} />
+              <Input pl="1" pt="1" type="file" ref={fileAudioRef} onChange={handleAudioChange} />
             </FormControl>
             <Divider></Divider>
             <HStack>

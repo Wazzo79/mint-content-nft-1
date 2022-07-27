@@ -18,11 +18,10 @@ import {
   Spinner,
   Stack,
   Textarea,
-  VStack,
   Toast,
+  VStack,
   useToast,
 } from "@chakra-ui/react";
-import { createFFmpeg, fetchFile } from "@ffmpeg/ffmpeg";
 import { useEffect, useRef, useState } from "react";
 
 import MintModal from "../components/mintmodal";
@@ -52,7 +51,7 @@ const Home: NextPage = () => {
   const [artistSplits, setArtistSplits] = useState<IArtistSplit[]>([]);
   const [artistAddress, setArtistAddress] = useState("");
   const [artistShare, setArtistShare] = useState<number>();
-  const [audio, setAudio] = useState();
+  const [audio, setAudio] = useState<File>();
   const [description, setDescription] = useState("");
   const [image, setImage] = useState<File>();
   const [loading, setLoading] = useState<boolean>();
@@ -78,19 +77,19 @@ const Home: NextPage = () => {
   const create = async () => {
     if (artistSplits.length === 0) {
       toast({
-        title: 'Error',
+        title: "Error",
         description: "You need to define creator split in order to be paid ongoing royalties.",
-        status: 'error',
+        status: "error",
         duration: 9000,
         isClosable: true,
       });
       return;
     }
-    if (artistSplits.map(m => m.address).some(s => s == platformAddress)) {
+    if (artistSplits.map((m) => m.address).some((s) => s == platformAddress)) {
       toast({
-        title: 'Error',
+        title: "Error",
         description: "Artist address cannot be the same as platform address",
-        status: 'error',
+        status: "error",
         duration: 9000,
         isClosable: true,
       });
@@ -187,41 +186,28 @@ const Home: NextPage = () => {
     }
   };
 
-  const ffmpeg = createFFmpeg({
-    log: false,
-  });
+  // const ffmpeg = createFFmpeg({
+  //   log: false,
+  // });
 
   const createVideo = async () => {
     setLoading(true);
-    await ffmpeg.load();
-    ffmpeg.FS("writeFile", "image.png", await fetchFile(image!));
-    ffmpeg.FS("writeFile", "sound.mp3", await fetchFile(audio!));
+    const formData = new FormData();
 
-    await ffmpeg.run("-i", "image.png", "-vf", "scale=600:600:force_original_aspect_ratio=increase,crop=600:600", "cropped.png");
+    formData.append("audio", (fileAudioRef.current as any).files[0]);
+    formData.append("image", (fileArtworkRef.current as any).files[0]);
+    formData.append("fileName", name);
 
-    await ffmpeg.run(
-      "-framerate",
-      "1/10",
-      "-i",
-      "cropped.png",
-      "-i",
-      "sound.mp3",
-      "-c:v",
-      "libx264",
-      // "-t",
-      // "10",
-      "-pix_fmt",
-      "yuv420p",
-      "-vf",
-      "scale=600:600",
-      "test.mp4"
-    );
+    const res = await fetch("/api/createvideo", {
+      method: "POST",
+      body: formData,
+    });
 
-    const data = ffmpeg.FS("readFile", "test.mp4");
-    let file = new File([new Blob([data.buffer])], `${name}.mp4`);
+    const fileBlob = await res.blob();
+    let file = new File([new Blob([fileBlob])], `${name}.mp4`);
     setUploadFile(file);
+    setVideoSource(URL.createObjectURL(new Blob([file], { type: `${name}.mp4` })));
     setLoading(false);
-    setVideoSource(URL.createObjectURL(new Blob([data.buffer], { type: `${name}.mp4` })));
   };
 
   const handleArtistSplitChange = () => {

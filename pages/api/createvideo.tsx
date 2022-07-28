@@ -1,7 +1,5 @@
-import { NextApiRequest, NextApiResponse } from "next";
 import { createFFmpeg, fetchFile } from "@ffmpeg/ffmpeg";
 
-import { Stream } from "stream";
 import nextConnect from "next-connect";
 
 const multer = require("multer");
@@ -16,10 +14,6 @@ const apiRoute = nextConnect({
 });
 
 apiRoute.use(multer().any());
-
-// const ffmpeg = createFFmpeg({
-//   log: false,
-// });
 
 const ffmpegInstance = createFFmpeg({ log: true });
 let ffmpegLoadingPromise: any = ffmpegInstance.load();
@@ -71,7 +65,7 @@ apiRoute.post(async (req, res) => {
     let data = await ffmpeg.FS("readFile", outputFileName);
 
     res.writeHead(200, {
-      "Content-Type": "application/mp4",
+      "Content-Type": "video/mp4",
       "Content-Disposition": `attachment;filename=${outputFileName}`,
       "Content-Length": data.length,
     });

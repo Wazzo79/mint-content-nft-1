@@ -186,10 +186,6 @@ const Home: NextPage = () => {
     }
   };
 
-  // const ffmpeg = createFFmpeg({
-  //   log: false,
-  // });
-
   const createVideo = async () => {
     setLoading(true);
     const formData = new FormData();
@@ -204,11 +200,20 @@ const Home: NextPage = () => {
     });
 
     const fileBlob = await res.blob();
-    let file = new File([new Blob([fileBlob])], `${name}.mp4`);
+
+    var video = document.getElementsByTagName("video")[0];
+    let objectURL = URL.createObjectURL(fileBlob);
+    video.src = objectURL;
+
+    let file = new File([fileBlob], `${name}.mp4`);
+
     setUploadFile(file);
-    setVideoSource(URL.createObjectURL(new Blob([file], { type: `${name}.mp4` })));
+    setVideoSource(URL.createObjectURL(fileBlob));
+
     setLoading(false);
   };
+
+  console.log(videoSource);
 
   const handleArtistSplitChange = () => {
     let tempArtistSplit: IArtistSplit = { address: artistAddress, share: artistShare };
@@ -352,10 +357,10 @@ const Home: NextPage = () => {
             ))}
             <Divider></Divider>
             <Box>
-            <Center>
-              <video src={videoSource} controls width="300px" height="300px" hidden={videoSource === ""}></video>
-            </Center>
-          </Box>
+              <Center>
+                <video controls autoPlay preload="auto" width="300px" height="300px" hidden={videoSource == ""}></video>
+              </Center>
+            </Box>
             <FormControl hidden={deployedNFTContract === ""}>
               <FormLabel>NFT Contract Address</FormLabel>
               <Input disabled type="text" placeholder="NFT Contract Address" value={deployedNFTContract} />
@@ -365,7 +370,7 @@ const Home: NextPage = () => {
               <Input disabled type="text" placeholder="Payment Contrct Address" value={deployedSplitterContract} />
             </FormControl>
             <Divider></Divider>
-            <ButtonGroup>
+            <Stack direction={["column", "row"]}>
               <Button onClick={() => clearAll()} colorScheme="red">
                 Reset
               </Button>
@@ -386,11 +391,10 @@ const Home: NextPage = () => {
                 View Royalty Contract
               </Button>
 
-              <MintModal account={account} nftContract={deployedNFTContract} web3={web3} mintCost={mintCost} deployedNFTContract={deployedNFTContract} />
-            </ButtonGroup>
+              <MintModal account={account} nftContract={deployedNFTContract} web3={web3} mintCost={mintCost} videoSource={videoSource} />
+            </Stack>
           </VStack>
           <Spacer />
-          
         </Stack>
       </Container>
     </>

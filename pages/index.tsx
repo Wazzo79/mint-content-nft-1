@@ -391,7 +391,7 @@ const Home: NextPage = () => {
                 View Royalty Contract
               </Button>
 
-              <MintModal account={account} nftContract={deployedNFTContract} web3={web3} mintCost={mintCost} videoSource={videoSource} />
+              <MintModal account={account} nftContract={deployedNFTContract} web3={web3} mintCost={mintCost} videoSource={videoSource} deployedNFTContract={deployedNFTContract} />
             </Stack>
           </VStack>
           <Spacer />

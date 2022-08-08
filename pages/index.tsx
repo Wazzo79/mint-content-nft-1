@@ -14,6 +14,7 @@ import {
   Heading,
   IconButton,
   Input,
+  Select,
   Spacer,
   Spinner,
   Stack,
@@ -66,7 +67,10 @@ const Home: NextPage = () => {
   const [royalty, setRoyalty] = useState<number>(10);
   const [deployedNFTContract, setDeployedNftContractContract] = useState("");
   const [deployedSplitterContract, setDeployedSplitterContract] = useState("");
-  const [platformAddress, setPlatformAddress] = useState("");
+  const [platformAddress, setPlatformAddress] = useState("0x57fcF301dAd7631d9BDD81e73316a606CF3a9893");
+
+  const [albumName, setAlbumName] = useState("");
+  const [trackType, setTrackType] = useState("Single");
 
   const fileArtworkRef = useRef(null);
   const fileAudioRef = useRef(null);
@@ -118,7 +122,6 @@ const Home: NextPage = () => {
     setMaxCopies(50);
     setMintCost(0.1);
     setDescription("");
-    setPlatformAddress("");
     setRoyalty(10);
     if (fileArtworkRef.current) (fileArtworkRef.current as any).value = null;
     setLoading(false);
@@ -187,30 +190,37 @@ const Home: NextPage = () => {
   };
 
   const createVideo = async () => {
-    setLoading(true);
-    const formData = new FormData();
-
-    formData.append("audio", (fileAudioRef.current as any).files[0]);
-    formData.append("image", (fileArtworkRef.current as any).files[0]);
-    formData.append("fileName", name);
-
-    const res = await fetch("/api/createvideo", {
-      method: "POST",
-      body: formData,
-    });
-
-    const fileBlob = await res.blob();
-
-    var video = document.getElementsByTagName("video")[0];
-    let objectURL = URL.createObjectURL(fileBlob);
-    video.src = objectURL;
-
-    let file = new File([fileBlob], `${name}.mp4`);
-
-    setUploadFile(file);
-    setVideoSource(URL.createObjectURL(fileBlob));
-
-    setLoading(false);
+    try
+    {
+      setLoading(true);
+      const formData = new FormData();
+  
+      formData.append("audio", (fileAudioRef.current as any).files[0]);
+      formData.append("image", (fileArtworkRef.current as any).files[0]);
+      formData.append("fileName", name);
+  
+      const res = await fetch("/api/createvideo", {
+        method: "POST",
+        body: formData,
+      });
+  
+      const fileBlob = await res.blob();
+  
+      var video = document.getElementsByTagName("video")[0];
+      let objectURL = URL.createObjectURL(fileBlob);
+      video.src = objectURL;
+  
+      let file = new File([fileBlob], `${name}.mp4`);
+  
+      setUploadFile(file);
+      setVideoSource(URL.createObjectURL(fileBlob));
+  
+      setLoading(false);
+    }
+    catch 
+    {
+      setLoading(false);
+    }
   };
 
   console.log(videoSource);
@@ -248,32 +258,50 @@ const Home: NextPage = () => {
   };
 
   const uploadContentFileToIPFS = async () => {
-    if (uploadFile !== undefined) {
-      setLoading(true);
-      let filePath = (await ipfs.add(uploadFile)).path;
+    try 
+    {
+      if (uploadFile !== undefined) {
+        setLoading(true);
+        let filePath = (await ipfs.add(uploadFile)).path;
+        setLoading(false);
+        return filePath;
+      }
+    }
+    catch 
+    {
       setLoading(false);
-      return filePath;
     }
   };
 
   const createNFTJson = async (contentUrl: string | undefined) => {
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    addAttribute("Artist(s)", artist);
+      addAttribute("Artist(s)", artist);
+      addAttribute("Track Type", trackType);
+      if (trackType !== "Single") {
+        addAttribute(trackType, albumName);
+      }
+      addAttribute("Maximum Copies", `${maxCopies.toString()}`);
 
-    const jsn = JSON.stringify({
-      description: description,
-      image: `https://ipfs.infura.io/ipfs/${contentUrl}`,
-      name: name,
-      attributes: attributes,
-    });
+      const jsn = JSON.stringify({
+        description: description,
+        image: `https://ipfs.infura.io/ipfs/${contentUrl}`,
+        name: name,
+        attributes: attributes,
+      });
 
-    const blob = new Blob([jsn], { type: "application/json" });
-    const file = new File([blob], "file.json");
+      const blob = new Blob([jsn], { type: "application/json" });
+      const file = new File([blob], "file.json");
 
-    const fileAdded = await ipfs.add(file);
-    setLoading(false);
-    return `https://ipfs.infura.io/ipfs/${fileAdded.path}`;
+      const fileAdded = await ipfs.add(file);
+      setLoading(false);
+      return `https://ipfs.infura.io/ipfs/${fileAdded.path}`;
+    }
+    catch 
+    {
+      setLoading(false);
+    }
   };
 
   return (
@@ -301,13 +329,23 @@ const Home: NextPage = () => {
               <Input type="text" onChange={(e: any) => setArtist(e.target.value)} value={artist} placeholder="Artist(s)" />
             </FormControl>
             <FormControl isRequired>
-              <FormLabel>DV Platform Royalty Address</FormLabel>
-              <Input type="text" onChange={(e: any) => setPlatformAddress(e.target.value)} value={platformAddress} placeholder="Platform Address" />
-            </FormControl>
-            <FormControl isRequired>
               <FormLabel>Maximum copies to release</FormLabel>
               <Input type="number" onChange={(e: any) => setMaxCopies(e.target.value)} value={maxCopies} placeholder="e.g. 50" />
             </FormControl>
+
+            <FormControl isRequired>
+              <FormLabel>Track Type</FormLabel>
+              <Select value={trackType} onChange={(e) => setTrackType(e.target.value)}>
+                <option value="Single">Single</option>
+                <option value="Album">Album</option>
+                <option value="EP">EP</option>
+              </Select>
+            </FormControl>
+            <FormControl hidden={trackType === "Single"}>
+              <FormLabel>Album/EP Name</FormLabel>
+              <Input placeholder="Album/EP Name" onChange={(e) => setAlbumName(e.target.value)} />
+            </FormControl>
+
             <HStack width="100%">
               <FormControl isRequired>
                 <FormLabel>Mint Cost (ETH)</FormLabel>
@@ -377,7 +415,7 @@ const Home: NextPage = () => {
               <Button
                 onClick={createVideo}
                 hidden={uploadFile !== undefined}
-                disabled={name === "" || description === "" || artist === "" || platformAddress === "" || artistSplits.length === 0}
+                disabled={name === "" || description === "" || artist === "" || artistSplits.length === 0}
               >
                 {loading ? <Spinner /> : "Create Video"}
               </Button>
@@ -391,7 +429,14 @@ const Home: NextPage = () => {
                 View Royalty Contract
               </Button>
 
-              <MintModal account={account} nftContract={deployedNFTContract} web3={web3} mintCost={mintCost} videoSource={videoSource} deployedNFTContract={deployedNFTContract} />
+              <MintModal
+                account={account}
+                nftContract={deployedNFTContract}
+                web3={web3}
+                mintCost={mintCost}
+                videoSource={videoSource}
+                deployedNFTContract={deployedNFTContract}
+              />
             </Stack>
           </VStack>
           <Spacer />
